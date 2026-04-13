@@ -1,0 +1,16 @@
+.git
+.gitignore
+.idea
+.pytest_cache
+__pycache__
+craw/
+out/
+uploads/
+*.pdf
+~
+LICENSE
+README.md
+DEPLOY.md
+nginx/
+docker-compose.yml
+.dockerignore

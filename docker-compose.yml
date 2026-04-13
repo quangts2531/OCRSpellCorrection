@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  ocr-app:
+    build: .
+    container_name: ocr-app
+    ports:
+      - "5000:5000"
+    restart: always
+    volumes:
+      # Persist HuggingFace model cache across container restarts
+      - hf-cache:/app/.cache/huggingface
+
+volumes:
+  hf-cache:

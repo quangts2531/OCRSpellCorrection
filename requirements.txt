@@ -1,0 +1,12 @@
+flask
+werkzeug
+gunicorn
+easyocr
+ultralytics
+opencv-python-headless
+scikit-learn
+huggingface-hub
+numpy
+underthesea
+symspellpy
+django
