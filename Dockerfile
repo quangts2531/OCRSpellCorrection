@@ -51,6 +51,6 @@ EXPOSE 7860
 CMD ["gunicorn", \
      "--bind", "0.0.0.0:7860", \
      "--workers", "2", \
-     "--timeout", "1000", \
+     "--timeout", "99999", \
      "--preload", \
      "app:app"]
