@@ -14,8 +14,8 @@ import time
 class ImageToText:
     def __init__(self):
         self.probability = Probability()
-        device = True if torch.cuda.is_available() else False
-        self.reader = easyocr.Reader(['vi','en'], gpu = device)
+        gpu = torch.cuda.is_available()
+        self.reader = easyocr.Reader(['vi','en'], gpu = gpu)
         model_path = hf_hub_download(
             repo_id="hantian/yolo-doclaynet",
             filename="yolov8x-doclaynet.pt"
