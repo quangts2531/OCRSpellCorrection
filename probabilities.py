@@ -1,4 +1,3 @@
-from django.contrib.admin.templatetags.admin_list import result_list
 from underthesea import word_tokenize, ner
 import re
 from symspellpy import SymSpell, Verbosity

@@ -11,13 +11,23 @@ from xycut import bbox2points, recursive_xy_cut, vis_polygons_with_index
 from sklearn.cluster import DBSCAN
 import time
 
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
+os.environ['OMP_NUM_THREADS'] = '2'
+os.environ['MKL_NUM_THREADS'] = '2'
+
+import torch
+torch.set_num_threads(2)
+torch.set_num_interop_threads(1)
+
+
 class ImageToText:
     def __init__(self):
         self.probability = Probability()
         self.reader = easyocr.Reader(['vi','en'])
         model_path = hf_hub_download(
             repo_id="hantian/yolo-doclaynet",
-            filename="yolov8x-doclaynet.pt"
+            filename="yolov8s-doclaynet.pt"
         )
 
         self.model = YOLO(model_path)

@@ -7,11 +7,11 @@ FROM python:3.9-slim
 
 # ----- System dependencies for OpenCV & image processing -----
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libgl1 \
-        libglib2.0-0 \
-        libsm6 \
-        libxext6 \
-        libxrender-dev \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
 
@@ -31,8 +31,8 @@ COPY . .
 
 # ----- Create cache & upload directories -----
 RUN mkdir -p /app/.cache/easyocr/model \
-             /app/.cache/huggingface \
-             /app/uploads
+    /app/.cache/huggingface \
+    /app/uploads
 
 # ----- Ensure appuser owns everything -----
 RUN chown -R appuser:appuser /app
@@ -48,9 +48,4 @@ USER appuser
 EXPOSE 7860
 
 # ----- Run with Gunicorn -----
-CMD ["gunicorn", \
-     "--bind", "0.0.0.0:7860", \
-     "--workers", "2", \
-     "--timeout", "99999", \
-     "--preload", \
-     "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--workers", "1", "--threads", "2", "--timeout", "99999", "app:app"]
