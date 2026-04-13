@@ -29,12 +29,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # ----- Copy application source -----
 COPY . .
 
+# ----- Create cache & upload directories -----
+RUN mkdir -p /app/.cache/easyocr/model \
+             /app/.cache/huggingface \
+             /app/uploads
+
 # ----- Ensure appuser owns everything -----
 RUN chown -R appuser:appuser /app
 
-# ----- HuggingFace model cache -----
+# ----- Model cache paths -----
 ENV HF_HOME=/app/.cache/huggingface
-
 ENV EASYOCR_MODULE_PATH=/app/.cache/easyocr
 
 # ----- Switch to non-root user -----
