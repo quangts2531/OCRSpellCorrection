@@ -35,6 +35,8 @@ RUN chown -R appuser:appuser /app
 # ----- HuggingFace model cache -----
 ENV HF_HOME=/app/.cache/huggingface
 
+ENV EASYOCR_MODULE_PATH=/app/.cache/easyocr
+
 # ----- Switch to non-root user -----
 USER appuser
 
