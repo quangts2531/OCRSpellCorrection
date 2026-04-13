@@ -2,6 +2,7 @@ import easyocr
 import cv2 as cv
 import re
 import numpy as np
+import torch
 
 from ultralytics import YOLO
 from probabilities import Probability
@@ -13,7 +14,8 @@ import time
 class ImageToText:
     def __init__(self):
         self.probability = Probability()
-        self.reader = easyocr.Reader(['vi','en'])
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.reader = easyocr.Reader(['vi','en'], gpu = device)
         model_path = hf_hub_download(
             repo_id="hantian/yolo-doclaynet",
             filename="yolov8x-doclaynet.pt"

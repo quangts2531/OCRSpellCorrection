@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
+
+
 # ----- Create non-root user (HF Spaces requirement, UID 1000) -----
 RUN useradd -m -u 1000 appuser
 
