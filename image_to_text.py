@@ -14,7 +14,7 @@ import time
 class ImageToText:
     def __init__(self):
         self.probability = Probability()
-        self.reader = easyocr.Reader(['vi','en'], gpu = False)
+        self.reader = easyocr.Reader(['vi','en'], gpu=False, model_storage_directory='/app/.easyocr_model')
         model_path = hf_hub_download(
             repo_id="hantian/yolo-doclaynet",
             filename="yolov8x-doclaynet.pt"
