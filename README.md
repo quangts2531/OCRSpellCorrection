@@ -1,4 +1,3 @@
-# OCRSpellCorrection
 ---
 title: OCR Spell Correction
 emoji: 🪄
