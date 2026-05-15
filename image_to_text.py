@@ -1,9 +1,12 @@
+# pyrefly: ignore [missing-import]
 import easyocr
+# pyrefly: ignore [missing-import]
 import cv2 as cv
 import re
 import numpy as np
 import torch
 
+# pyrefly: ignore [missing-import]
 from ultralytics import YOLO
 from probabilities import Probability
 from huggingface_hub import hf_hub_download
@@ -127,7 +130,7 @@ class ImageToText:
 
 
 if __name__ == "__main__":
-    img_path = "list_image/65d581a5dca4b054b6980098_Budapest.jpg"
+    img_path = "mau-cv-xin-viec-don-gian-image-1.jpg"
     image_to_text = ImageToText()
     result = image_to_text.image_to_text(img_path)
 

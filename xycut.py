@@ -1,4 +1,5 @@
 from typing import List
+# pyrefly: ignore [missing-import]
 import cv2
 import numpy as np
 

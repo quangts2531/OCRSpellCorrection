@@ -1,4 +1,5 @@
 import os
+# pyrefly: ignore [missing-import]
 from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 from image_to_text import ImageToText
