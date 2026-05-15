@@ -1,5 +1,9 @@
 # OCRSpellCorrection
 
+[![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/TangSan003/OCRSpellCorrection)
+
+**Live Demo / Deployment:** You can test the application live here: [https://huggingface.co/spaces/TangSan003/OCRSpellCorrection](https://huggingface.co/spaces/TangSan003/OCRSpellCorrection)
+
 ## 1. Project Introduction & Research Overview
 
 **OCRSpellCorrection** is a research and development project focused on significantly improving the output accuracy of Optical Character Recognition (OCR) models, specifically targeting **EasyOCR**. The core objective is achieved through a comprehensive pipeline that combines input image pre-processing, layout analysis, and output spelling correction.
