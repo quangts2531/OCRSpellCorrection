@@ -42,7 +42,7 @@ class ImageToText:
             )
             self.model = YOLO(model_path)
         except Exception as e:
-            logger.error("Failed to initialize OCR models: %s", e)
+            logger.error("Failed to initialize OCR engine: %s", e, exc_info=True)
             raise RuntimeError(
                 f"Could not load required models (EasyOCR / YOLO / SymSpell). "
                 f"Check network connectivity and cache paths. Original error: {e}"

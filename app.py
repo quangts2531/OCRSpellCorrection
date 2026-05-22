@@ -56,7 +56,7 @@ def upload_file():
             extracted_text = ocr_engine.image_to_text(filepath)
             return jsonify({'text': extracted_text})
         except Exception as e:
-            logger.error("OCR processing failed for %s: %s", filename, e)
+            logger.error("OCR processing failed for %s: %s", filename, e, exc_info=True)
             return jsonify({'error': str(e)}), 500
         finally:
             # FIX 4: Always clean up the uploaded file
