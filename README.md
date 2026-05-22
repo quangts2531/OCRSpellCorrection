@@ -6,6 +6,14 @@
 
 ---
 
+## Demo
+
+| Input document | OCR + Spelling correction output |
+|:-:|:-:|
+| ![Input document](demo/img.png) | ![OCR output](demo/img_1.png) |
+
+---
+
 ## 1. Project Introduction & Research Overview
 
 **OCRSpellCorrection** is a research and development project focused on significantly improving the output accuracy of Optical Character Recognition (OCR) models, specifically targeting **EasyOCR**. The core objective is achieved through a comprehensive pipeline that combines input image pre-processing, layout analysis, and output spelling correction.
@@ -46,6 +54,8 @@ The project is structured around three main pillars:
 *   **Algorithm Used:** N-gram approach.
 *   **Reasoning:** The N-gram methodology is easily scalable because massive amounts of unlabeled text data can be crawled and utilized to build the language models. This allows for quick deployment without the heavy time constraints and costs associated with manual data labeling.
 *   **Key Tasks Done:** Extensive data crawling, building robust 1-gram, 2-gram, and 3-gram language models, and implementing the core spelling correction logic.
+
+  The final language model contains 15,373 unigrams, 59,037 bigrams, and 74,049 trigrams built from Vietnamese job-posting and CV text.
 
 ### Pillar 2: Illogical Document Layout Reconstruction (Completed / Implemented)
 *   **Description:** Reorganizing and reconstructing non-logical, fragmented, or complex document image layouts into a readable, sequential format prior to text extraction.
@@ -320,6 +330,73 @@ When you are done testing and want to stop the application and free up system re
 
 ---
 
+## Running Locally (without Docker)
+
+**Requirements:** Python 3.9+
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/quangts2531/OCRSpellCorrection.git
+cd OCRSpellCorrection
+
+# 2. Install system dependencies (Ubuntu/Debian)
+sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
+
+# 3. Install Python dependencies
+pip install -r requirements.txt
+
+# 4. Run the application
+python app.py
+```
+
+The app will start at `http://localhost:7860`.
+
+> **Note:** On first run, EasyOCR will automatically download the Vietnamese language model (~50MB) and the YOLO doclaynet model from HuggingFace. This may take a few minutes.
+
+## API Reference
+
+### `GET /`
+Returns the main web UI.
+
+### `POST /upload`
+Performs OCR on an uploaded image.
+
+**Request:** `multipart/form-data`
+
+| Field   | Type   | Description              |
+|---------|--------|--------------------------|
+| `image` | file   | Image file (PNG/JPG/JPEG/GIF, max 10MB) |
+
+**Response (success):**
+```json
+{
+  "text": "Extracted and spell-corrected text..."
+}
+```
+
+**Response (error):**
+```json
+{
+  "error": "Error message"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:7860/upload \
+  -F "image=@your_document.jpg"
+```
+
+### `GET /health`
+Health check endpoint for Docker.
+
+**Response:**
+```json
+{ "status": "ok" }
+```
+
+---
+
 ## 5. Local Development (without Docker)
 
 If you prefer to run the project directly on your host machine without Docker, follow these steps.
@@ -567,6 +644,44 @@ OCRSpellCorrection/
                                   #   ultralytics, opencv-python-headless, scikit-learn,
                                   #   huggingface-hub, numpy, underthesea, symspellpy, django.
 ```
+
+| File | Description |
+|------|-------------|
+| `app.py` | Flask web server — handles file upload, calls OCR engine, returns JSON |
+| `image_to_text.py` | Core pipeline — YOLO layout detection, EasyOCR, assembles final text |
+| `probabilities.py` | N-gram spelling correction using SymSpell and underthesea tokenizer |
+| `xycut.py` | XY-Cut algorithm for reconstructing logical reading order |
+| `dictionary/` | Pre-built 1-gram, 2-gram, 3-gram frequency dictionaries |
+| `evaluate.py` | Script to measure CER/WER on test images |
+| `templates/` | HTML frontend templates |
+| `Dockerfile` | Container build definition |
+| `docker-compose.yml` | Docker Compose configuration with healthcheck |
+
+---
+
+## Evaluation Results
+
+Evaluation was conducted on the sample Vietnamese CV document included in the
+repository (`mau-cv-xin-viec-don-gian-image-1.jpg`).
+
+| Pipeline Stage           | CER    | WER    |
+|--------------------------|--------|--------|
+| Raw EasyOCR              | TBD    | TBD    |
+| + Spelling Correction    | TBD    | TBD    |
+
+> Metrics computed using [jiwer](https://github.com/jitsi/jiwer).
+> CER = Character Error Rate, WER = Word Error Rate. Lower is better.
+> Run `python evaluate.py` to reproduce these results.
+
+## Dictionary Statistics
+
+The N-gram language models were trained on crawled Vietnamese job-posting text.
+
+| Model  | Entries |
+|--------|---------|
+| 1-gram | 15,373  |
+| 2-gram | 59,037  |
+| 3-gram | 74,049  |
 
 ---
 
