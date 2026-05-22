@@ -4,6 +4,7 @@ import easyocr
 import cv2 as cv
 import re
 import numpy as np
+import logging
 import torch
 
 # pyrefly: ignore [missing-import]
@@ -23,22 +24,34 @@ import torch
 torch.set_num_threads(2)
 torch.set_num_interop_threads(1)
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 
 class ImageToText:
     def __init__(self):
-        self.probability = Probability()
-        self.reader = easyocr.Reader(['vi','en'])
-        model_path = hf_hub_download(
-            repo_id="hantian/yolo-doclaynet",
-            filename="yolov8s-doclaynet.pt"
-        )
-
-        self.model = YOLO(model_path)
+        try:
+            self.probability = Probability()
+            self.reader = easyocr.Reader(['vi','en'])
+            model_path = hf_hub_download(
+                repo_id="hantian/yolo-doclaynet",
+                filename="yolov8s-doclaynet.pt"
+            )
+            self.model = YOLO(model_path)
+        except Exception as e:
+            logger.error("Failed to initialize OCR models: %s", e)
+            raise RuntimeError(
+                f"Could not load required models (EasyOCR / YOLO / SymSpell). "
+                f"Check network connectivity and cache paths. Original error: {e}"
+            ) from e
 
     def image_to_text(self, image_path):
         start_time = time.time()
         sorted_boxes = self.split_image(image_path)
-        print(time.time() - start_time, " Split sucesfull")
+        logger.info("%.2fs — Layout split complete", time.time() - start_time)
 
         image = cv.imread(image_path)
         output_text = ""
@@ -58,7 +71,7 @@ class ImageToText:
                 output_text = output_text + fixed_text + "\n"
 
 
-        print(time.time() - start_time, " OCR sucesfull")
+        logger.info("%.2fs — OCR pipeline complete", time.time() - start_time)
         return output_text
 
     def split_image(self, image_path):
@@ -84,6 +97,12 @@ class ImageToText:
                 if class_id != 6:
                     list_box.append([x_box_min, y_box_min, x_box_max, y_box_max, class_id, label, conf])
 
+            # FIX 2: Guard against empty list_box (no detected regions)
+            if not list_box:
+                logger.info("No layout regions detected — falling back to full image bounding box")
+                sorted_boxes.append([0, 0, image.shape[1], image.shape[0]])
+                continue
+
             avg_height = sum(box[3] - box[1] for box in list_box) / len(list_box)
             centers = np.array([[(b[0] + b[2]) / 2, (b[1] + b[3]) / 2] for b in list_box])
             clustering = DBSCAN(eps=avg_height * 4, min_samples=1).fit(centers)
@@ -91,13 +110,12 @@ class ImageToText:
             list_label_area = clustering.labels_
 
             box_area = []
-            label = []
-            for label in range(max(list_label_area) + 1):
-                label_index = [list_box[i] for i, label_name in enumerate(list_label_area) if label_name == label]
-                x1 = min(label[0] for label in label_index)
-                y1 = min(label[1] for label in label_index)
-                x2 = max(label[2] for label in label_index)
-                y2 = max(label[3] for label in label_index)
+            for cluster_id in range(max(list_label_area) + 1):
+                cluster_boxes = [list_box[i] for i, lbl in enumerate(list_label_area) if lbl == cluster_id]
+                x1 = min(b[0] for b in cluster_boxes)
+                y1 = min(b[1] for b in cluster_boxes)
+                x2 = max(b[2] for b in cluster_boxes)
+                y2 = max(b[3] for b in cluster_boxes)
 
                 box_area.append([x1, y1, x2, y2])
 

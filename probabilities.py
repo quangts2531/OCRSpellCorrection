@@ -7,14 +7,24 @@ from symspellpy import SymSpell, Verbosity
 
 class Probability:
     def __init__(self):
-        self.sym_spell_2gram = self.sym_spell_3gram = self.sym_spell = SymSpell(
+        self.sym_spell = SymSpell(
+            max_dictionary_edit_distance=2,
+            prefix_length=7,
+            count_threshold=1
+        )
+        self.sym_spell_2gram = SymSpell(
+            max_dictionary_edit_distance=2,
+            prefix_length=7,
+            count_threshold=1
+        )
+        self.sym_spell_3gram = SymSpell(
             max_dictionary_edit_distance=2,
             prefix_length=7,
             count_threshold=1
         )
         self.sym_spell.load_dictionary("dictionary/frequency_vi_test.txt", 0, 1, separator="$")
         self.sym_spell_2gram.load_dictionary("dictionary/dic_2_gram_test.txt", 0, 1, separator="$")
-        self.sym_spell_3gram .load_dictionary("dictionary/dic_3_gram_test.txt", 0, 1, separator="$")
+        self.sym_spell_3gram.load_dictionary("dictionary/dic_3_gram_test.txt", 0, 1, separator="$")
 
     def fix_spelling(self, text):
         word_tokenizer_format = word_tokenize(text, format="text")

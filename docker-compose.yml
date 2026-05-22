@@ -10,6 +10,12 @@ services:
     volumes:
       # Persist HuggingFace model cache across container restarts
       - hf-cache:/app/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   hf-cache:
+

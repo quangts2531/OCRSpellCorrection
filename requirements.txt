@@ -10,3 +10,5 @@ numpy
 underthesea
 symspellpy
 django
+jiwer
+pytest
