@@ -76,23 +76,23 @@ This section provides a detailed walkthrough of every component in the pipeline.
 
 ### 2.1 Spelling Correction (`probabilities.py`)
 
-The spelling correction module is built on the **SymSpell** library and uses **N-gram language models** (1-gram, 2-gram, and 3-gram) to choose the best correction for each potentially misspelled word.
+Built on SymSpell with 1/2/3-gram Vietnamese language models trained on job-posting data.
 
 #### Dictionary & Training Data
 
 The language models were built by crawling Vietnamese job listing data from TopCV (stored in `craw/job_details.json`, ~75 MB of raw text). The scripts in the `dictionary/` folder process this data:
 
-1. **`convert_frequency.py`** — Tokenizes the crawled text using [Underthesea](https://github.com/undertheseanlp/underthesea) (`word_tokenize`, `sent_tokenize`, `text_normalize`), counts word frequencies, and writes a 1-gram frequency file. Only words appearing more than 5 times (or 1,000 times for sub-word splits) are retained.
-2. **`dic_2_gram.py`** — Builds a bigram dictionary by sliding a window of size 2 over tokenized text. Each entry is a pair of consecutive tokens joined by `_` with its co-occurrence count. Only pairs with count > 5 are kept.
-3. **`dic_3_gram.py`** — Same approach but with a window of size 3 (trigrams).
+1. **`convert_frequency.py`** — Tokenizes with Underthesea (`word_tokenize`), counts frequencies; retains words appearing > 5 times (> 1,000 for sub-word splits).
+2. **`dic_2_gram.py`** — Builds bigrams using a sliding window of size 2, joined by `_`; keeps pairs with count > 5.
+3. **`dic_3_gram.py`** — Same approach with window size 3 (trigrams).
 
 The resulting dictionaries loaded at runtime are:
 
 | Dictionary File | Entries | Description |
 | :--- | ---: | :--- |
-| `frequency_vi_test.txt` | ~17,871 | 1-gram (single words) with frequency counts |
-| `dic_2_gram_test.txt` | ~55,899 | 2-gram (word pairs) with co-occurrence counts |
-| `dic_3_gram_test.txt` | ~88,184 | 3-gram (word triples) with co-occurrence counts |
+| `frequency_vi_test.txt` | 15,373 | 1-gram (single words) with frequency counts |
+| `dic_2_gram_test.txt` | 59,037 | 2-gram (word pairs) with co-occurrence counts |
+| `dic_3_gram_test.txt` | 74,049 | 3-gram (word triples) with co-occurrence counts |
 
 Each file uses `$` as a delimiter between the n-gram and its count, e.g.:
 ```
@@ -102,23 +102,15 @@ công$124833
 
 #### How Correction Works Step-by-Step
 
-1. **Tokenization** — The input sentence is tokenized with Underthesea's `word_tokenize(text, format="text")`. This segments Vietnamese compound words (e.g., `"xin chào"` → `"xin_chào"`).
+1. **Tokenization** — Tokenizes with `word_tokenize(text, format="text")`, segmenting Vietnamese compound words (e.g., `"xin chào"` → `"xin_chào"`).
 
-2. **Candidate Generation** — For each token, `word_tokenizer_suggestions()` uses SymSpell's `lookup()` (edit distance ≤ 2) to find candidate corrections from the 1-gram dictionary. Each candidate has three attributes: `term`, `distance` (edit distance from the original), and `count` (frequency in the corpus). Tokens that are numbers, emails, phone numbers, or proper nouns (detected via Underthesea's `ner()`) are skipped.
+2. **Candidate Generation** — `word_tokenizer_suggestions()` calls SymSpell's `lookup()` (edit distance ≤ 2) against the 1-gram dictionary. Numbers, emails, phone numbers, and proper nouns (via Underthesea `ner()`) are skipped.
 
-3. **Context Scoring** — When a word has multiple candidates (distance > 0), `fix_spelling_word()` scores each candidate using contextual N-gram probabilities:
-   - **Left bigram probability**: Look up `left_word + "_" + candidate` in the 2-gram dictionary.
-   - **Right bigram probability**: Look up `candidate + "_" + right_word` in the 2-gram dictionary for each candidate of the next word.
-   - **Trigram probability**: Look up `left_word + "_" + candidate + "_" + right_word` in the 3-gram dictionary.
-   - For each N-gram lookup, `count_word()` returns the frequency count if an exact match (distance = 0) is found.
+3. **Context Scoring** — `fix_spelling_word()` scores each candidate via left bigram, right bigram, and trigram probability lookups in the 2-gram and 3-gram dictionaries.
 
-4. **Selection Formula** — All probabilities (left, right, trigram) across all candidates are collected. The total count `sum_count` is computed. For each probability entry:
-   ```
-   P = count / sum_count    (if count > 0, else P = 0)
-   ```
-   The candidate with the highest `P` wins. The direction (`"left"` or `"right"`) determines whether the winning candidate absorbs the preceding or following word in the output sequence.
+4. **Selection Formula** — The candidate with the highest `P = count / sum_count` wins; direction (`"left"`/`"right"`) determines absorption of the adjacent word.
 
-5. **Reconstruction** — The corrected tokens are joined back with spaces, and underscores in compound words are replaced with spaces.
+5. **Reconstruction** — Corrected tokens are joined with spaces; underscores in compound words are replaced with spaces.
 
 #### Concrete Example
 
@@ -141,17 +133,9 @@ Output: "Có kinh nghiệm lý đội nhóm gồm 20 nhân viên"
 
 ### 2.2 Layout Reconstruction (`xycut.py` + `image_to_text.py`)
 
-The layout reconstruction pipeline ensures that text regions in complex documents (multi-column layouts, CVs, forms) are read in the correct human-readable order.
-
 #### YOLO Layout Detection
 
-The pipeline uses the **`hantian/yolo-doclaynet`** model (YOLOv8s variant, downloaded from Hugging Face Hub) to detect document layout regions. The model is trained on DocLayNet and can identify region types such as:
-- Text paragraphs
-- Titles / headings
-- Tables
-- Figures
-- Lists
-- Page headers / footers
+The pipeline uses the **`hantian/yolo-doclaynet`** model (YOLOv8s variant, downloaded from Hugging Face Hub). Detects region types including paragraphs, titles, tables, figures, lists, and page headers/footers.
 
 The YOLO inference is configured in `split_image()` with:
 - `imgsz=1024` — Input image size
@@ -167,28 +151,17 @@ After YOLO detection, the bounding box centers are clustered using **DBSCAN** (f
 - `eps = avg_height * 4` — The maximum distance between two samples to be considered in the same neighborhood, scaled by the average box height
 - `min_samples = 1` — Every point forms at least its own cluster
 
-This step groups spatially close regions (e.g., a title and its sub-heading) into single logical blocks, producing merged bounding boxes for each cluster.
-
 #### XY-Cut Algorithm Step-by-Step
 
 The **Recursive XY-Cut** algorithm (`recursive_xy_cut()`) determines reading order by recursively splitting the page along horizontal and vertical projection gaps:
 
-1. **Y-axis projection (horizontal cut):** 
-   - Sort all bounding boxes by their top `y` coordinate.
-   - Project all boxes onto the Y-axis to create a 1D histogram (`projection_by_bboxes(axis=1)`).
-   - Find gaps in the projection using `split_projection_profile()` — gaps are contiguous zero-value intervals with `min_gap > 1`.
-   - Each non-gap segment represents a horizontal strip of content.
+1. **Y-axis projection (horizontal cut):** Sort all bounding boxes by their top `y` coordinate and project onto the Y-axis to find horizontal strips via `split_projection_profile()` (gaps are zero-value intervals with `min_gap > 1`).
 
-2. **X-axis projection (vertical cut):**
-   - Within each horizontal strip, sort boxes by their left `x` coordinate.
-   - Project onto the X-axis (`projection_by_bboxes(axis=0)`).
-   - Find vertical gaps — if gaps exist, the strip contains multiple columns.
+2. **X-axis projection (vertical cut):** Within each strip, project onto the X-axis (`projection_by_bboxes(axis=0)`) to detect vertical gaps indicating multiple columns.
 
-3. **Recursion:**
-   - If vertical gaps split the strip into multiple column groups, recursively apply XY-Cut to each group.
-   - If no vertical split is possible (single column), append the box indices to the result list in their current sorted order.
+3. **Recursion:** If vertical gaps exist, recursively apply XY-Cut to each column group; otherwise append box indices in sorted order.
 
-4. **Overlap merging:** After XY-Cut produces a sorted order, `image_to_text.py` performs a final overlap-merging pass — any boxes that spatially overlap are merged into a single bounding box using `is_overlapping()`.
+4. **Overlap merging:** After sorting, `image_to_text.py` merges any spatially overlapping boxes into a single bounding box using `is_overlapping()`.
 
 #### What "Illogical Layout" Means in Practice
 
@@ -221,8 +194,6 @@ Software Dev at Company X"
 
 ### 2.3 OCR Engine (`image_to_text.py`)
 
-The `ImageToText` class orchestrates the full pipeline. Here is the function-by-function walkthrough:
-
 #### `__init__(self)`
 1. Instantiates `Probability()` — loads all three N-gram dictionaries into SymSpell.
 2. Creates an EasyOCR `Reader` for Vietnamese (`vi`) and English (`en`).
@@ -240,12 +211,7 @@ The `ImageToText` class orchestrates the full pipeline. Here is the function-by-
 1. Calls `split_image()` to get sorted bounding boxes.
 2. Reads the image with OpenCV.
 3. For each bounding box in reading order:
-   - Crops the region from the image: `image[y_min:y_max, x_min:x_max]`
-   - Runs `self.reader.readtext()` on the cropped region → returns list of `(bbox, text, confidence)`.
-   - Concatenates all text fragments with `\n`.
-   - Applies regex `r'\n(?![A-Z])'` to join lines that don't start with an uppercase letter (heuristic for paragraph continuation).
-   - Splits the result by `\n` and applies `self.probability.fix_spelling()` to each line.
-   - Capitalizes the first letter of each corrected line.
+   - Crops the region: `image[y_min:y_max, x_min:x_max]` and runs `self.reader.readtext()` → `(bbox, text, confidence)`.
 4. Returns the final concatenated text.
 
 #### Reading Order Logic
@@ -330,76 +296,9 @@ When you are done testing and want to stop the application and free up system re
 
 ---
 
-## Running Locally (without Docker)
-
-**Requirements:** Python 3.9+
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/quangts2531/OCRSpellCorrection.git
-cd OCRSpellCorrection
-
-# 2. Install system dependencies (Ubuntu/Debian)
-sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
-
-# 3. Install Python dependencies
-pip install -r requirements.txt
-
-# 4. Run the application
-python app.py
-```
-
-The app will start at `http://localhost:7860`.
-
-> **Note:** On first run, EasyOCR will automatically download the Vietnamese language model (~50MB) and the YOLO doclaynet model from HuggingFace. This may take a few minutes.
-
-## API Reference
-
-### `GET /`
-Returns the main web UI.
-
-### `POST /upload`
-Performs OCR on an uploaded image.
-
-**Request:** `multipart/form-data`
-
-| Field   | Type   | Description              |
-|---------|--------|--------------------------|
-| `image` | file   | Image file (PNG/JPG/JPEG/GIF, max 10MB) |
-
-**Response (success):**
-```json
-{
-  "text": "Extracted and spell-corrected text..."
-}
-```
-
-**Response (error):**
-```json
-{
-  "error": "Error message"
-}
-```
-
-**Example:**
-```bash
-curl -X POST http://localhost:7860/upload \
-  -F "image=@your_document.jpg"
-```
-
-### `GET /health`
-Health check endpoint for Docker.
-
-**Response:**
-```json
-{ "status": "ok" }
-```
-
----
-
 ## 5. Local Development (without Docker)
 
-If you prefer to run the project directly on your host machine without Docker, follow these steps.
+After cloning the repository (see [Section 4](#4-installation--docker-execution-guide)), follow these steps to run without Docker:
 
 ### Prerequisites
 
@@ -414,25 +313,19 @@ If you prefer to run the project directly on your host machine without Docker, f
 
 ### Step-by-Step Setup
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/quangts2531/OCRSpellCorrection.git
-    cd OCRSpellCorrection
-    ```
-
-2.  **Create a virtual environment (recommended):**
+1.  **Create a virtual environment (recommended):**
     ```bash
     python -m venv venv
     source venv/bin/activate   # Linux / macOS
     # venv\Scripts\activate    # Windows
     ```
 
-3.  **Install Python dependencies:**
+2.  **Install Python dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
 
-4.  **Set environment variables (optional but recommended):**
+3.  **Set environment variables (optional but recommended):**
     ```bash
     export HF_HOME=./.cache/huggingface
     export EASYOCR_MODULE_PATH=./.cache/easyocr
@@ -441,7 +334,7 @@ If you prefer to run the project directly on your host machine without Docker, f
     export MKL_NUM_THREADS=2
     ```
 
-5.  **Run the application:**
+4.  **Run the application:**
     ```bash
     python app.py
     ```
@@ -548,33 +441,22 @@ print(f"CER: {cer(ground_truth, hypothesis):.2%}")
 print(f"WER: {wer(ground_truth, hypothesis):.2%}")
 ```
 
-### Results Table (Placeholder)
+### Results Table
 
 | Pipeline Stage | CER | WER |
 | :--- | :--- | :--- |
-| Raw EasyOCR output | TBD | TBD |
-| + Layout Reconstruction (YOLO + XY-Cut) | TBD | TBD |
-| + Spelling Correction (N-gram) | TBD | TBD |
+| Raw EasyOCR output | — | — |
+| + Layout Reconstruction (YOLO + XY-Cut) | — | — |
+| + Spelling Correction (N-gram) | — | — |
+
+> **Note:** Quantitative CER/WER benchmarking requires a paired (image, ground-truth text)
+> dataset. The included sample image `mau-cv-xin-viec-don-gian-image-1.jpg` was used for
+> qualitative evaluation — see the Demo section for a visual comparison of raw vs corrected output.
+> To run your own evaluation: populate `GROUND_TRUTH` in `evaluate.py` and run `python evaluate.py`.
 
 ### Generating Ground Truth
 
-To fill in the results table, you need paired (image, ground-truth text) data. Two approaches:
-
-1.  **Synthetic rendering (recommended for controlled benchmarking):**
-    Use PIL/Pillow to render known Vietnamese text onto images, then pass those images through the pipeline and compare with the original text.
-    ```python
-    from PIL import Image, ImageDraw, ImageFont
-
-    img = Image.new("RGB", (800, 200), "white")
-    draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype("arial.ttf", 24)
-    draw.text((10, 10), "Xin chào thế giới", fill="black", font=font)
-    img.save("synthetic_test.png")
-    ```
-
-2.  **Public datasets:**
-    - [**VinText**](https://github.com/VinAIResearch/dict-guided) — A Vietnamese text detection and recognition dataset with scene-text images and ground-truth annotations.
-    - Any Vietnamese document dataset with text annotations can be used.
+To generate ground truth, render known Vietnamese text to images using PIL/Pillow, then compare pipeline output against the original text. Public datasets such as [VinText](https://github.com/VinAIResearch/dict-guided) can also be used.
 
 ---
 
@@ -593,11 +475,11 @@ OCRSpellCorrection/
 │   ├── dic_2_gram.py             #   Builds the 2-gram (bigram) dictionary from crawled JSON
 │   ├── dic_3_gram.py             #   Builds the 3-gram (trigram) dictionary from crawled JSON
 │   ├── frequency_vi.txt          #   Raw 1-gram frequency data (full, unfiltered)
-│   ├── frequency_vi_test.txt     #   Filtered 1-gram dictionary loaded at runtime (~17.8K entries)
+│   ├── frequency_vi_test.txt     #   Filtered 1-gram dictionary loaded at runtime (15,373 entries)
 │   ├── dic_2_gram.txt            #   Raw 2-gram data (full, unfiltered)
-│   ├── dic_2_gram_test.txt       #   Filtered 2-gram dictionary loaded at runtime (~55.9K entries)
+│   ├── dic_2_gram_test.txt       #   Filtered 2-gram dictionary loaded at runtime (59,037 entries)
 │   ├── dic_3_gram.txt            #   Raw 3-gram data (full, unfiltered)
-│   └── dic_3_gram_test.txt       #   Filtered 3-gram dictionary loaded at runtime (~88.2K entries)
+│   └── dic_3_gram_test.txt       #   Filtered 3-gram dictionary loaded at runtime (74,049 entries)
 │
 ├── nginx/                        # Nginx reverse proxy configuration for production deployment
 │
@@ -630,6 +512,9 @@ OCRSpellCorrection/
 │
 ├── pdf_to_text.py                # Utility script for PDF-to-text conversion (minimal wrapper).
 │
+├── evaluate.py                   # Evaluation script — computes CER/WER against
+│                                 #   ground-truth text using the jiwer library.
+│
 ├── Dockerfile                    # Multi-stage Docker build using python:3.9-slim. Installs system
 │                                 #   dependencies (libgl1, libglib2.0-0, etc.), creates a non-root
 │                                 #   user (UID 1000 for HF Spaces), and runs the app via Gunicorn
@@ -644,44 +529,6 @@ OCRSpellCorrection/
                                   #   ultralytics, opencv-python-headless, scikit-learn,
                                   #   huggingface-hub, numpy, underthesea, symspellpy, django.
 ```
-
-| File | Description |
-|------|-------------|
-| `app.py` | Flask web server — handles file upload, calls OCR engine, returns JSON |
-| `image_to_text.py` | Core pipeline — YOLO layout detection, EasyOCR, assembles final text |
-| `probabilities.py` | N-gram spelling correction using SymSpell and underthesea tokenizer |
-| `xycut.py` | XY-Cut algorithm for reconstructing logical reading order |
-| `dictionary/` | Pre-built 1-gram, 2-gram, 3-gram frequency dictionaries |
-| `evaluate.py` | Script to measure CER/WER on test images |
-| `templates/` | HTML frontend templates |
-| `Dockerfile` | Container build definition |
-| `docker-compose.yml` | Docker Compose configuration with healthcheck |
-
----
-
-## Evaluation Results
-
-Evaluation was conducted on the sample Vietnamese CV document included in the
-repository (`mau-cv-xin-viec-don-gian-image-1.jpg`).
-
-| Pipeline Stage           | CER    | WER    |
-|--------------------------|--------|--------|
-| Raw EasyOCR              | TBD    | TBD    |
-| + Spelling Correction    | TBD    | TBD    |
-
-> Metrics computed using [jiwer](https://github.com/jitsi/jiwer).
-> CER = Character Error Rate, WER = Word Error Rate. Lower is better.
-> Run `python evaluate.py` to reproduce these results.
-
-## Dictionary Statistics
-
-The N-gram language models were trained on crawled Vietnamese job-posting text.
-
-| Model  | Entries |
-|--------|---------|
-| 1-gram | 15,373  |
-| 2-gram | 59,037  |
-| 3-gram | 74,049  |
 
 ---
 
