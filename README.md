@@ -294,7 +294,7 @@ The most reliable way to run OCRSpellCorrection is using **Docker** and **Docker
 
 1.  **Clone the repository and navigate to the project directory:**
     ```bash
-    git clone <repository_url>
+    git clone https://github.com/quangts2531/OCRSpellCorrection.git
     cd OCRSpellCorrection
     ```
 
@@ -416,7 +416,7 @@ If you prefer to run the project directly on your host machine without Docker, f
 
 1.  **Clone the repository:**
     ```bash
-    git clone <repository_url>
+    git clone https://github.com/quangts2531/OCRSpellCorrection.git
     cd OCRSpellCorrection
     ```
 
